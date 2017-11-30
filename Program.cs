@@ -1,9 +1,12 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
+
+using KenticoCloud.ContentManagement;
+using KenticoCloud.ContentManagement.Models.Items;
+using KenticoCloud.ContentManagement.Models.Assets;
 
 namespace Import
 {
@@ -11,13 +14,20 @@ namespace Import
     {
         static void Main(string[] args)
         {
-            var client = new Client();
+            var options = new ContentManagementOptions
+            {
+                ProjectId = ConfigurationManager.AppSettings["ProjectId"],
+                ApiKey = ConfigurationManager.AppSettings["ContentManagementApiKey"]
+            };
+            var client = new ContentManagementClient(options);
+
             var folderPath = ConfigurationManager.AppSettings["DatabaseFolderPath"];
+
             ImportActors(folderPath, client);
             ImportMovies(folderPath, client);
         }
 
-        private static void ImportActors(string folderPath, Client client)
+        private static void ImportActors(string folderPath, ContentManagementClient client)
         {
             foreach (var actor in DatabaseEntry.CreateFromFolder(Path.Combine(folderPath, "Actors")))
             {
@@ -27,74 +37,53 @@ namespace Import
 
                 var externalId = $"Actor - {actor.ExternalId}";
 
-                var item = new
+                var item = new ContentItemUpsertModel
                 {
-                    name = actor.GetText("Name"),
-                    type = new
-                    {
-                        codename = "actor"
-                    },
-                    sitemap_locations = new object[0]
+                    Name = actor.GetText("Name"),
+                    Type = ContentTypeIdentifier.ByCodename("actor"),
+                    SitemapLocations = { }
                 };
 
-                client.Put($"items/external-id/{Uri.EscapeDataString(externalId)}", item);
+                client.UpsertContentItemByExternalIdAsync(externalId, item);
 
-                var variant = new
+                var itemIdentifier = ContentItemIdentifier.ByExternalId(actor.ExternalId);
+                var languageIdentifier = LanguageIdentifier.DEFAULT_LANGUAGE;
+
+                var variant = new ContentItemVariantUpdateModel
                 {
-                    item = new
-                    {
-                        external_id = actor.ExternalId
-                    },
-                    elements = new
+                    Elements = new
                     {
                         name = actor.GetText("Name"),
                         born = actor.GetDateTime("Born"),
                         bio = actor.GetText("Bio"),
                         photo = new object[] { new { external_id = imageExternalId } }
                     },
-                    language = new
-                    {
-                        id = Guid.Empty
-                    }
                 };
 
-                client.Put($"items/external-id/{Uri.EscapeDataString(externalId)}/variants/{Guid.Empty}", variant);
+                client.UpsertContentItemVariantAsync(new ContentItemVariantIdentifier(itemIdentifier, languageIdentifier), variant);
             }
         }
 
-        private static string ImportActorPhoto(DatabaseEntry actor, string folderPath, Client client)
+        private static string ImportActorPhoto(DatabaseEntry actor, string folderPath, ContentManagementClient client)
         {
             var externalId = $"Actor image - {actor.ExternalId}";
             var filePath = Path.Combine(folderPath, "Actors", "images", $"{actor.ExternalId}.jpg");
+            var contentType = "image/jpeg";
 
-            var file = client.PostFile($"files/{Uri.EscapeDataString(actor.ExternalId)}.jpg", filePath);
-
-            var asset = new
-            {
-                file_reference = new
+            var descriptions = new List<AssetDescriptionsModel> {
+                new AssetDescriptionsModel
                 {
-                    id = file["id"].Value<string>(),
-                    type = file["type"].Value<string>()
-                },
-                descriptions = new object[]
-                {
-                    new
-                    {
-                        language = new
-                        {
-                            id = Guid.Empty
-                        },
-                        description = actor.GetText("Name")
-                    }
+                    Language = LanguageIdentifier.DEFAULT_LANGUAGE,
+                    Description = actor.GetText("Name")
                 }
             };
 
-            client.Put($"assets/external-id/{Uri.EscapeDataString(externalId)}", asset);
+            var file = client.UpsertAssetByExternalIdAsync(actor.ExternalId, new FileContentSource(filePath, contentType), new List<AssetDescriptionsModel>());
 
             return externalId;
         }
 
-        private static void ImportMovies(string folderPath, Client client)
+        private static void ImportMovies(string folderPath, ContentManagementClient client)
         {
             foreach (var movie in DatabaseEntry.CreateFromFolder(Path.Combine(folderPath, "Movies")))
             {
@@ -104,25 +93,21 @@ namespace Import
 
                 var externalId = $"Movie - {movie.ExternalId}";
 
-                var item = new
+                var item = new ContentItemUpsertModel
                 {
-                    name = movie.GetText("Name"),
-                    type = new
-                    {
-                        codename = "movie"
-                    },
-                    sitemap_locations = movie.GetListItems("Sitemap location").Select(x => new { codename = GetCodename(x) })
+                    Name = movie.GetText("Name"),
+                    Type = ContentTypeIdentifier.ByCodename("movie"),
+                    SitemapLocations = movie.GetListItems("Sitemap location").Select(x => SitemapNodeIdentifier.ByCodename(GetCodename(x)))
                 };
 
-                client.Put($"items/external-id/{Uri.EscapeDataString(externalId)}", item);
+                client.UpsertContentItemByExternalIdAsync(externalId, item);
 
-                var variant = new
+                var itemIdentifier = ContentItemIdentifier.ByExternalId(externalId);
+                var languageIdentifier = LanguageIdentifier.DEFAULT_LANGUAGE;
+
+                var variant = new ContentItemVariantUpdateModel
                 {
-                    item = new
-                    {
-                        external_id = movie.ExternalId
-                    },
-                    elements = new
+                    Elements = new
                     {
                         name = movie.GetText("Name"),
                         description = movie.GetText("Description"),
@@ -135,48 +120,32 @@ namespace Import
                         slug = movie.GetText("Slug"),
                         photos = imageExternalIds.Select(x => new { external_id = x })
                     },
-                    language = new
-                    {
-                        id = Guid.Empty
-                    }
                 };
 
-                client.Put($"items/external-id/{Uri.EscapeDataString(externalId)}/variants/{Guid.Empty}", variant);
+                client.UpsertContentItemVariantAsync(new ContentItemVariantIdentifier(itemIdentifier, languageIdentifier), variant);
             }
         }
 
-        private static string[] ImportMoviePhotos(DatabaseEntry movie, string folderPath, Client client)
+        private static string[] ImportMoviePhotos(DatabaseEntry movie, string folderPath, ContentManagementClient client)
         {
             folderPath = Path.Combine(folderPath, "Movies", "images", movie.ExternalId);
             var externalIds = new List<string>();
+            var contentType = "image/jpeg";
 
             foreach (var filePath in Directory.EnumerateFiles(folderPath, "*.jpg", SearchOption.TopDirectoryOnly))
             {
                 var externalId = $"Movie image - {movie.ExternalId} ({Path.GetFileNameWithoutExtension(filePath)})";
-                var file = client.PostFile($"files/{Uri.EscapeDataString(Path.GetFileName(filePath))}", filePath);
 
-                var asset = new
-                {
-                    file_reference = new
+                var descriptions = new List<AssetDescriptionsModel> {
+                    new AssetDescriptionsModel
                     {
-                        id = file["id"].Value<string>(),
-                        type = file["type"].Value<string>()
-                    },
-                    descriptions = new object[]
-                    {
-                    new
-                    {
-                        language = new
-                        {
-                            id = Guid.Empty
-                        },
-                        description = movie.GetText("Name")
-                    }
+                        Language = LanguageIdentifier.DEFAULT_LANGUAGE,
+                        Description = movie.GetText("Name")
                     }
                 };
 
-                client.Put($"assets/external-id/{Uri.EscapeDataString(externalId)}", asset);
-
+                var file = client.UpsertAssetByExternalIdAsync(movie.ExternalId, new FileContentSource(filePath, contentType), new List<AssetDescriptionsModel>());
+                
                 externalIds.Add(externalId);
             }
 
