@@ -1,0 +1,29 @@
+﻿Name
+John Wick: Chapter 2
+
+Description
+<p>After returning to the criminal underworld to repay a debt, John Wick discovers that a large bounty has been put on his life.</p>
+
+Synopsis
+<p>Retired super-assassin John Wick's (<a data-item-external-id="Actor - Keanu Reeves">Keanu Reeves</a>) plans to resume a quiet civilian life are cut short when Italian gangster Santino D'Antonio (<a data-item-external-id="Actor - Riccardo Scamarcio">Riccardo Scamarcio</a>) shows up on his doorstep with a gold marker, compelling him to repay past favors. Ordered by Winston (<a data-item-external-id="Actor - Ian McShane">Ian McShane</a>), kingpin of secret assassin society The Continental, to respect the organization's ancient code, Wick reluctantly accepts the assignment to travel to Rome to take out D'Antonio's sister, the ruthless capo atop the Italian Camorra crime syndicate.</p>
+
+Release date
+February 10, 2017
+
+Genres
+Action, Crime, Thriller
+
+Cast
+Keanu Reeves, Riccardo Scamarcio, Ian McShane
+
+IMDB rating
+7.6
+
+Rating
+R
+
+Slug
+john-wick-chapter-2-2017
+
+Sitemap location
+Iteration review demo
