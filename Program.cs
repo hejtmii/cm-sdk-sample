@@ -56,11 +56,14 @@ namespace Import
                         name = actor.GetText("Name"),
                         born = actor.GetDateTime("Born"),
                         bio = actor.GetText("Bio"),
-                        photo = new object[] { new { external_id = imageExternalId } }
+                        photo = new object[] { AssetIdentifier.ByExternalId(imageExternalId) }
                     },
                 };
 
-                client.UpsertContentItemVariantAsync(new ContentItemVariantIdentifier(itemIdentifier, languageIdentifier), variant);
+                client.UpsertContentItemVariantAsync(
+                    new ContentItemVariantIdentifier(itemIdentifier, languageIdentifier),
+                    variant
+                );
             }
         }
 
@@ -78,7 +81,11 @@ namespace Import
                 }
             };
 
-            var file = client.UpsertAssetByExternalIdAsync(actor.ExternalId, new FileContentSource(filePath, contentType), new List<AssetDescriptionsModel>());
+            client.UpsertAssetByExternalIdAsync(
+                actor.ExternalId,
+                new FileContentSource(filePath, contentType),
+                new List<AssetDescriptionsModel>()
+            );
 
             return externalId;
         }
@@ -114,11 +121,11 @@ namespace Import
                         synopsis = movie.GetText("Synopsis"),
                         release_date = movie.GetDateTime("Release date"),
                         genre = movie.GetListItems("Genres").Select(x => new { codename = GetCodename(x) }),
-                        cast = movie.GetListItems("Cast").Select(x => new { external_id = $"Actor - {x}" }),
+                        cast = movie.GetListItems("Cast").Select(x => ContentItemIdentifier.ByExternalId($"Actor - {x}")),
                         imdb_rating = movie.GetNumber("IMDB rating"),
                         rating = new object[] { new { codename = GetCodename(movie.GetText("Rating")) } },
                         slug = movie.GetText("Slug"),
-                        photos = imageExternalIds.Select(x => new { external_id = x })
+                        photos = imageExternalIds.Select(imageExternalId => AssetIdentifier.ByExternalId(imageExternalId))
                     },
                 };
 
