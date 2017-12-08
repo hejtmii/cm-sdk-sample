@@ -41,7 +41,6 @@ namespace Import
                 {
                     Name = actor.GetText("Name"),
                     Type = ContentTypeIdentifier.ByCodename("actor"),
-                    SitemapLocations = { }
                 };
 
                 client.UpsertContentItemByExternalIdAsync(externalId, item);
@@ -49,14 +48,14 @@ namespace Import
                 var itemIdentifier = ContentItemIdentifier.ByExternalId(actor.ExternalId);
                 var languageIdentifier = LanguageIdentifier.DEFAULT_LANGUAGE;
 
-                var variant = new ContentItemVariantUpdateModel
+                var variant = new ContentItemVariantUpsertModel
                 {
                     Elements = new
                     {
                         name = actor.GetText("Name"),
                         born = actor.GetDateTime("Born"),
                         bio = actor.GetText("Bio"),
-                        photo = new object[] { AssetIdentifier.ByExternalId(imageExternalId) }
+                        photo = new [] { AssetIdentifier.ByExternalId(imageExternalId) }
                     },
                 };
 
@@ -73,8 +72,8 @@ namespace Import
             var filePath = Path.Combine(folderPath, "Actors", "images", $"{actor.ExternalId}.jpg");
             var contentType = "image/jpeg";
 
-            var descriptions = new List<AssetDescriptionsModel> {
-                new AssetDescriptionsModel
+            var descriptions = new List<AssetDescription> {
+                new AssetDescription
                 {
                     Language = LanguageIdentifier.DEFAULT_LANGUAGE,
                     Description = actor.GetText("Name")
@@ -84,7 +83,7 @@ namespace Import
             client.UpsertAssetByExternalIdAsync(
                 actor.ExternalId,
                 new FileContentSource(filePath, contentType),
-                new List<AssetDescriptionsModel>()
+                new List<AssetDescription>()
             );
 
             return externalId;
@@ -112,7 +111,7 @@ namespace Import
                 var itemIdentifier = ContentItemIdentifier.ByExternalId(externalId);
                 var languageIdentifier = LanguageIdentifier.DEFAULT_LANGUAGE;
 
-                var variant = new ContentItemVariantUpdateModel
+                var variant = new ContentItemVariantUpsertModel
                 {
                     Elements = new
                     {
@@ -120,10 +119,10 @@ namespace Import
                         description = movie.GetText("Description"),
                         synopsis = movie.GetText("Synopsis"),
                         release_date = movie.GetDateTime("Release date"),
-                        genre = movie.GetListItems("Genres").Select(x => new { codename = GetCodename(x) }),
+                        genre = movie.GetListItems("Genres").Select(x => TaxonomyTermIdentifier.ByCodename(GetCodename(x))),
                         cast = movie.GetListItems("Cast").Select(x => ContentItemIdentifier.ByExternalId($"Actor - {x}")),
                         imdb_rating = movie.GetNumber("IMDB rating"),
-                        rating = new object[] { new { codename = GetCodename(movie.GetText("Rating")) } },
+                        rating = new [] { MultipleChoiceOptionIdentifier.ByCodename(GetCodename(movie.GetText("Rating"))) },
                         slug = movie.GetText("Slug"),
                         photos = imageExternalIds.Select(imageExternalId => AssetIdentifier.ByExternalId(imageExternalId))
                     },
@@ -143,15 +142,15 @@ namespace Import
             {
                 var externalId = $"Movie image - {movie.ExternalId} ({Path.GetFileNameWithoutExtension(filePath)})";
 
-                var descriptions = new List<AssetDescriptionsModel> {
-                    new AssetDescriptionsModel
+                var descriptions = new List<AssetDescription> {
+                    new AssetDescription
                     {
                         Language = LanguageIdentifier.DEFAULT_LANGUAGE,
                         Description = movie.GetText("Name")
                     }
                 };
 
-                var file = client.UpsertAssetByExternalIdAsync(movie.ExternalId, new FileContentSource(filePath, contentType), new List<AssetDescriptionsModel>());
+                var file = client.UpsertAssetByExternalIdAsync(movie.ExternalId, new FileContentSource(filePath, contentType), new List<AssetDescription>());
                 
                 externalIds.Add(externalId);
             }
